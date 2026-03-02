@@ -1,9 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createUserWithEmailAndPassword } from "firebase/auth";
+import { FirebaseError } from "firebase/app";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+
+function getSignupErrorMessage(code: string): string {
+    switch (code) {
+        case "auth/email-already-in-use":
+            return "このメールアドレスはすでに使用されています";
+        case "auth/invalid-email":
+            return "メールアドレスの形式が正しくありません";
+        case "auth/weak-password":
+            return "パスワードは6文字以上にしてください";
+        default:
+            return "登録に失敗しました";
+    }
+}
 
 export default function SignupPage() {
     const [email, setEmail] = useState("");
@@ -17,9 +32,13 @@ export default function SignupPage() {
 
         try {
             await createUserWithEmailAndPassword(auth, email, password);
-            router.push("/"); // 登録後にトップページへ遷移
-        } catch (err: any) {
-            setError(err.message);
+            router.push("/");
+        } catch (err) {
+            if (err instanceof FirebaseError) {
+                setError(getSignupErrorMessage(err.code));
+            } else {
+                setError("登録に失敗しました");
+            }
         }
     };
 
@@ -54,9 +73,9 @@ export default function SignupPage() {
 
                 <div className="text-sm text-center mt-4">
                     すでにアカウントをお持ちですか？{" "}
-                    <a href="/login" className="link text-blue-500">
+                    <Link href="/login" className="link text-blue-500">
                         ログインはこちら
-                    </a>
+                    </Link>
                 </div>
             </div>
         </main>

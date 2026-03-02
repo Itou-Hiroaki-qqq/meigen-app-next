@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db, auth } from "@/lib/firebase";
+import Link from "next/link";
+import { db } from "@/lib/firebase";
 import {
     collection,
     onSnapshot,
     deleteDoc,
     doc,
 } from "firebase/firestore";
-import { onAuthStateChanged, User } from "firebase/auth";
 import useAuthRedirect from "@/hooks/useAuthRedirect";
 
 interface Favorite {
@@ -18,16 +18,9 @@ interface Favorite {
 }
 
 export default function FavoritesPage() {
-    useAuthRedirect(); //未ログインならリダイレクト
+    const { loading, user } = useAuthRedirect();
     const [favorites, setFavorites] = useState<Favorite[]>([]);
-    const [user, setUser] = useState<User | null>(null);
-
-    useEffect(() => {
-        const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
-            setUser(u);
-        });
-        return () => unsubscribeAuth();
-    }, []);
+    const [deleteMsg, setDeleteMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
     useEffect(() => {
         if (!user) return;
@@ -35,9 +28,9 @@ export default function FavoritesPage() {
         const favRef = collection(db, "users", user.uid, "favorites");
 
         const unsubscribe = onSnapshot(favRef, (snapshot) => {
-            const data = snapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...(doc.data() as Omit<Favorite, "id">),
+            const data = snapshot.docs.map((d) => ({
+                id: d.id,
+                ...(d.data() as Omit<Favorite, "id">),
             }));
             setFavorites(data);
         });
@@ -50,11 +43,21 @@ export default function FavoritesPage() {
 
         try {
             await deleteDoc(doc(db, "users", user.uid, "favorites", id));
-            alert("お気に入りを解除しました");
+            setDeleteMsg({ text: "お気に入りを解除しました", ok: true });
         } catch {
-            alert("削除に失敗しました。");
+            setDeleteMsg({ text: "削除に失敗しました。", ok: false });
         }
+
+        setTimeout(() => setDeleteMsg(null), 3000);
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-black text-white">
+                読み込み中...
+            </div>
+        );
+    }
 
     return (
         <div
@@ -68,10 +71,16 @@ export default function FavoritesPage() {
                     <h1 className="text-2xl font-bold text-white drop-shadow-md">
                         お気に入りリスト
                     </h1>
-                    <a href="/" className="text-white underline">
+                    <Link href="/" className="text-white underline">
                         ← ホームに戻る
-                    </a>
+                    </Link>
                 </div>
+
+                {deleteMsg && (
+                    <p className={`text-center mb-4 text-sm ${deleteMsg.ok ? "text-green-300" : "text-red-300"}`}>
+                        {deleteMsg.text}
+                    </p>
+                )}
 
                 {favorites.length === 0 ? (
                     <p className="text-gray-200 text-center max-w-xl mx-auto">
@@ -92,7 +101,7 @@ export default function FavoritesPage() {
                                 </div>
                                 <button
                                     onClick={() => removeFavorite(item.id)}
-                                    className="bg-red-500 hover:bg-red-400 text-white font-bold text-sm px-2 py-1 rounded-lg shadow-md transition ml-2 [writing-mode:vertical-rl]"
+                                    className="btn btn-sm btn-error ml-2"
                                 >
                                     解除
                                 </button>

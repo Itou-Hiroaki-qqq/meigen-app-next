@@ -1,9 +1,26 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { FirebaseError } from "firebase/app";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+
+function getLoginErrorMessage(code: string): string {
+    switch (code) {
+        case "auth/user-not-found":
+        case "auth/wrong-password":
+        case "auth/invalid-credential":
+            return "メールアドレスまたはパスワードが正しくありません";
+        case "auth/invalid-email":
+            return "メールアドレスの形式が正しくありません";
+        case "auth/too-many-requests":
+            return "試行回数が多すぎます。しばらくしてから再試行してください";
+        default:
+            return "ログインに失敗しました";
+    }
+}
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -17,9 +34,13 @@ export default function LoginPage() {
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            router.push("/"); // ログイン後、ホームへ
-        } catch (err: any) {
-            setError(err.message);
+            router.push("/");
+        } catch (err) {
+            if (err instanceof FirebaseError) {
+                setError(getLoginErrorMessage(err.code));
+            } else {
+                setError("ログインに失敗しました");
+            }
         }
     };
 
@@ -54,9 +75,9 @@ export default function LoginPage() {
 
                 <div className="text-sm text-center mt-4">
                     アカウントをお持ちでないですか？{" "}
-                    <a href="/signup" className="link text-blue-500">
+                    <Link href="/signup" className="link text-blue-500">
                         新規登録
-                    </a>
+                    </Link>
                 </div>
             </div>
         </main>

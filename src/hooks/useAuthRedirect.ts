@@ -1,20 +1,28 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 export default function useAuthRedirect() {
     const router = useRouter();
+    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<User | null>(null);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            if (!user) {
+        const unsubscribe = onAuthStateChanged(auth, (u) => {
+            if (u) {
+                setUser(u);
+                setLoading(false);
+            } else {
                 router.push("/login");
+                // loading は true のまま維持（リダイレクト完了までローディング表示）
             }
         });
 
-        return () => unsubscribe(); // クリーンアップ
+        return () => unsubscribe();
     }, [router]);
+
+    return { loading, user };
 }
